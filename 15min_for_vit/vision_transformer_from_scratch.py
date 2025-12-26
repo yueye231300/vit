@@ -15,17 +15,22 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 
-def pathchify(images,n_patches):
-    n,c,h,w = images.shape 
-    assert h % n_patches ==0 and w % n_patches ==0, "Image dimensions must be divisible by number of patches"
+def pathchify(images, n_patches):
+    # images: (batch, channels, height, width); n_patches: number of splits per side
+    n, c, h, w = images.shape
+    assert h % n_patches == 0 and w % n_patches == 0, "Image dimensions must be divisible by number of patches"
     assert h == w, "Currently only square images are supported"
-    patches = torch.zeros((n,n_patches**2,c*h*w//n_patches**2))
-    patch_size = h // n_patches 
+
+    # Preallocate tensor to hold all flattened patches: (batch, total_patches, patch_vector_length)
+    patches = torch.zeros((n, n_patches ** 2, c * h * w // n_patches ** 2))
+    patch_size = h // n_patches
+
+    # Extract each patch in a nested grid and flatten it into the output tensor
     for index, image in enumerate(images):
         for i in range(n_patches):
-            for j in range(n_patches):
-                patch = image[:,i*patch_size:(i+1)*patch_size,j*patch_size:(j+1)*patch_size]
-                patches[index,i*n_patches + j] = patch.flatten()
+            for j in range(n_patches): 
+                patch = image[:, i * patch_size : (i + 1) * patch_size, j * patch_size : (j + 1) * patch_size]
+                patches[index, i * n_patches + j] = patch.flatten()
     return patches
 
 
