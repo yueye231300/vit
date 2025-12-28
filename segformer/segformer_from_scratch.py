@@ -73,7 +73,7 @@ channels = 8
 class MixFFN(nn.Sequential):
     def __init__(self, channels: int, expansion: int = 4):
         super().__init__(
-            # dense layer,添加非线性
+            # dense layer,添加非线性,替换mlp
             nn.Conv2d(channels, channels, kernel_size=1),
             # depth wise conv
             nn.Conv2d(
@@ -229,9 +229,117 @@ class SegFormerEncoder(nn.Module):
             ]
         )
 
-        def forward(self, x):
-            features = []
-            for stage in self.stages:
-                x = stage(x)
-                features.append(x)
-            return features
+    def forward(self, x):
+        features = []
+        for stage in self.stages:
+            x = stage(x)
+            features.append(x)
+        return features
+
+
+# 测试的block
+class SegFormerDecoderBlock(nn.Sequential):
+    def __init__(self, in_channels: int, out_channels: int, scaler_factor: int = 2):
+        super().__init__(
+            # 确定上采样方式，但是未来这个方式可能会被移除，这个需要注意
+            nn.UpsamplingBilinear2d(scale_factor=scaler_factor),
+            nn.Conv2d(in_channels, out_channels, kernel_size=1),
+        )
+
+
+class SegFormerDecoder(nn.Module):
+    def __init__(self, out_channels: int, widths: List[int], scale_factors: List[int]):
+        super().__init__()
+        self.stages = nn.ModuleList(
+            [
+                SegFormerDecoderBlock(in_channels, out_channels, scale_factors)
+                for in_channels, scale_factors in zip(widths, scale_factors)
+            ]
+        )
+
+    def forward(self, features):
+        new_features = []
+        for feature, stage in zip(features, self.stages):
+            x = stage(feature)
+            new_features.append(x)
+        return new_features
+
+
+# 使用decoder head 完成对于特征的融合，使用卷积层
+class SegFormerSegmentationHead(nn.Module):
+    def __init__(self, channels: int, num_classes: int, num_features: int = 4):
+        super().__init__()
+        self.fuse = nn.Sequential(
+            nn.Conv2d(channels * num_features, channels, kernel_size=1),
+            nn.ReLU(),  # why relu who knows
+            nn.BatchNorm2d(channels),  # why batchnorm who knows
+        )
+        self.classifier = nn.Conv2d(channels, num_classes, kernel_size=1)
+
+    def forward(self, features):
+        x = torch.cat(features, dim=1)  # concat on channel dim
+        x = self.fuse(x)
+        x = self.classifier(x)
+        return x
+
+
+# 最后一步，超级拼装
+
+
+class SegFormer(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        widths: List[int],
+        depths: List[int],
+        all_num_heads: List[int],
+        patch_sizes: List[int],
+        overlap_sizes: List[int],
+        reduction_ratios: List[int],
+        mlp_expansions: List[int],
+        decoder_channels: int,
+        scale_factors: List[int],
+        num_classes: int,
+        drop_prob: float = 0.0,
+    ):
+
+        super().__init__()
+        self.encoder = SegFormerEncoder(
+            in_channels,
+            widths,
+            depths,
+            all_num_heads,
+            patch_sizes,
+            overlap_sizes,
+            reduction_ratios,
+            mlp_expansions,
+            drop_prob,
+        )
+        self.decoder = SegFormerDecoder(decoder_channels, widths[::-1], scale_factors)
+        self.head = SegFormerSegmentationHead(
+            decoder_channels, num_classes, num_features=len(widths)
+        )
+
+    def forward(self, x):
+        features = self.encoder(x)
+        features = self.decoder(features[::-1])
+        segmentation = self.head(features)
+        return segmentation
+
+
+segformer = SegFormer(
+    in_channels=3,
+    widths=[64, 128, 256, 512],
+    depths=[3, 4, 6, 3],
+    all_num_heads=[1, 2, 4, 8],
+    patch_sizes=[7, 3, 3, 3],
+    overlap_sizes=[4, 2, 2, 2],
+    reduction_ratios=[8, 4, 2, 1],
+    mlp_expansions=[4, 4, 4, 4],
+    decoder_channels=256,
+    scale_factors=[8, 4, 2, 1],
+    num_classes=50,
+)
+
+segmentation = segformer(torch.randn((1, 3, 224, 224)))
+print(segmentation.shape)
