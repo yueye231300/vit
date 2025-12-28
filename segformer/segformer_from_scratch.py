@@ -176,21 +176,62 @@ class SegFormerEncoderStage(nn.Sequential):
         )
         self.norm = LayerNorm2d(out_channels)
 
+
 from typing import Sequence
+
 
 def chunks(data: Sequence, sizes: List[int]):
     """
-    Givens an iterable ,returns slices useing sizes as indices
-    
+    Givens an sequence ,returns slices useing sizes as indices
+
     :param data: 支持切片的序列类型（如list、tuple）
     :type data: Sequence
     :param sizes: 每个片段的长度列表
     :type sizes: List[int]
     """
-    curr = 0 
-    for size in sizes: 
-        chunk = data[curr:curr+size]
-        curr += size 
+    curr = 0
+    for size in sizes:
+        chunk = data[curr : curr + size]
+        curr += size
         yield chunk
 
-class 
+
+class SegFormerEncoder(nn.Module):
+    def __init__(
+        self,
+        in_channels: int,
+        widths: List[int],
+        depths: List[int],
+        all_num_heads: List[int],
+        patch_sizes: List[int],
+        overlap_sizes: List[int],
+        reduction_ratios: List[int],
+        mlp_expansion: List[int],
+        drop_prob: float = 0.0,
+    ):
+        super().__init__()
+        # 随机丢弃一些结果，防止过拟合
+        drop_probs = [x.item() for x in torch.linspace(0, drop_prob, sum(depths))]
+        self.stages = nn.ModuleList(
+            [
+                SegFormerEncoderStage(*args)
+                for args in zip(
+                    [in_channels, *widths],
+                    widths,
+                    patch_sizes,
+                    overlap_sizes,
+                    chunks(drop_probs, sizes=depths),
+                    depths,
+                    reduction_ratios,
+                    all_num_heads,
+                    mlp_expansion,
+                )
+            ]
+        )
+
+        def forward(self, x):
+            features = []
+            for stage in self.stages:
+                x = stage(x)
+                features.append(x)
+            return features
