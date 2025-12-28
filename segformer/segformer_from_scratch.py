@@ -174,9 +174,23 @@ class SegFormerEncoderStage(nn.Sequential):
                 for i in range(depth)
             ]
         )
+        self.norm = LayerNorm2d(out_channels)
 
+from typing import Sequence
 
-test = torch.randn(1, 3, 64, 64)
-conv = nn.Conv2d(3, 6, kernel_size=7, stride=6, padding=1, groups=1)
-out = conv(test)
-print(out.shape)
+def chunks(data: Sequence, sizes: List[int]):
+    """
+    Givens an iterable ,returns slices useing sizes as indices
+    
+    :param data: 支持切片的序列类型（如list、tuple）
+    :type data: Sequence
+    :param sizes: 每个片段的长度列表
+    :type sizes: List[int]
+    """
+    curr = 0 
+    for size in sizes: 
+        chunk = data[curr:curr+size]
+        curr += size 
+        yield chunk
+
+class 
