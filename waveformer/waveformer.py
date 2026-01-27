@@ -187,9 +187,14 @@ class Wave2D(nn.Module):
         # 预计算时间嵌入
         t = self.to_k(freq)  # (H, W, C)
         # 预计算cos和sin项
-        self.register_buffer('cached_cos', torch.cos(self.c * t).permute(2, 0, 1).contiguous())  # (C, H, W)
-        self.register_buffer('cached_sin', torch.sin(self.c * t).permute(2, 0, 1).contiguous() / (self.c + 1e-6))
-        self.register_buffer('cached_decay', weight_exp)  # (H, W)
+        self.register_buffer(
+            "cached_cos", torch.cos(self.c * t).permute(2, 0, 1).contiguous()
+        )  # (C, H, W)
+        self.register_buffer(
+            "cached_sin",
+            torch.sin(self.c * t).permute(2, 0, 1).contiguous() / (self.c + 1e-6),
+        )
+        self.register_buffer("cached_decay", weight_exp)  # (H, W)
         # 删除不再需要的模块
         del self.to_k
 
@@ -214,42 +219,39 @@ class Wave2D(nn.Module):
         x_v0 = dct2d(x_velocity.permute(0, 3, 1, 2).contiguous())
 
         # 获取频率衰减图
-        if (H, W) == getattr(self, '_cached_res', (0, 0)):
-            decay_map = getattr(self, '_cached_decay_map')
+        if (H, W) == getattr(self, "_cached_res", (0, 0)):
+            decay_map = getattr(self, "_cached_decay_map")
         else:
             decay_map = self.get_decay_map((H, W), device=x.device, dtype=x.dtype)
             self._cached_res = (H, W)
             self._cached_decay_map = decay_map
-        
+
         # 应用频率衰减 (高频衰减更多)
         decay_map = decay_map.unsqueeze(0).unsqueeze(0)  # (1, 1, H, W)
         x_u0 = x_u0 * decay_map
         x_v0 = x_v0 * decay_map
 
         # 计算波动方程的时间演化项
-        if self.infer_mode and hasattr(self, 'cached_cos'):
+        if self.infer_mode and hasattr(self, "cached_cos"):
             # 推理模式：使用预计算的值
-            cos_term = self.cached_cos.unsqueeze(0).expand(B, -1, -1, -1)  # (B, C, H, W)
+            cos_term = self.cached_cos.unsqueeze(0).expand(
+                B, -1, -1, -1
+            )  # (B, C, H, W)
             sin_term = self.cached_sin.unsqueeze(0).expand(B, -1, -1, -1)
         else:
             # 训练模式
             if freq_embed is not None:
-                # 检查 freq_embed 的空间尺寸是否与特征图匹配
-                fe_h, fe_w, fe_c = freq_embed.shape
-                if fe_h != H or fe_w != W:
-                    # 插值调整 freq_embed 的空间尺寸
-                    freq_embed_resized = freq_embed.permute(2, 0, 1).unsqueeze(0)  # (1, C, fe_h, fe_w)
-                    freq_embed_resized = F.interpolate(freq_embed_resized, size=(H, W), mode='bilinear', align_corners=False)
-                    freq_embed_resized = freq_embed_resized.squeeze(0).permute(1, 2, 0).contiguous()  # (H, W, C)
-                else:
-                    freq_embed_resized = freq_embed
-                t = self.to_k(freq_embed_resized.unsqueeze(0).expand(B, -1, -1, -1).contiguous())
+                t = self.to_k(
+                    freq_embed.unsqueeze(0).expand(B, -1, -1, -1).contiguous()
+                )
             else:
                 t = torch.zeros((B, H, W, C), device=x.device, dtype=x.dtype)
-            
+
             eps = 1e-6
             cos_term = torch.cos(self.c * t).permute(0, 3, 1, 2).contiguous()
-            sin_term = torch.sin(self.c * t).permute(0, 3, 1, 2).contiguous() / (self.c + eps)
+            sin_term = torch.sin(self.c * t).permute(0, 3, 1, 2).contiguous() / (
+                self.c + eps
+            )
 
         # 波动方程解: u(t) = cos(ct)*u0 + sin(ct)/c * (v0 + alpha/2 * u0)
         wave_term = cos_term * x_u0
@@ -257,7 +259,7 @@ class Wave2D(nn.Module):
         final_term = wave_term + velocity_term
 
         x_final = idct2d(final_term)
-        
+
         # 输出处理
         x = self.out_norm(x_final.permute(0, 2, 3, 1).contiguous())
         x = x.permute(0, 3, 1, 2).contiguous()
@@ -511,7 +513,7 @@ class WaveFormer(nn.Module):
                 nn.init.constant_(m.weight, 1.0)
         elif isinstance(m, nn.Conv2d):
             # 使用Kaiming初始化Conv2d
-            nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.BatchNorm2d):
