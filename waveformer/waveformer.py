@@ -69,7 +69,6 @@ def build_act_layer(act_layer):
 
     raise NotImplementedError(f"build_act_layer does not support {act_layer}")
 
-
 class StemLayer(nn.Module):
     r"""Stem layer of InternImage
     Args:
