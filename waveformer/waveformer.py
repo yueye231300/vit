@@ -8,7 +8,6 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 from timm.layers import DropPath, trunc_normal_
 import torch_dct
-
 DropPath.__repr__ = lambda self: f"timm.DropPath({self.drop_prob})"
 
 
@@ -266,7 +265,6 @@ class Wave2D(nn.Module):
         x = self.out_linear(x.permute(0, 2, 3, 1).contiguous())
         x = x.permute(0, 3, 1, 2).contiguous()
         return x
-
 
 class WaveBlock(nn.Module):
     def __init__(
