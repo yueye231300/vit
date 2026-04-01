@@ -4,3 +4,5 @@ vision_language_model_from_scratch/notes
 .vscode/
 .worktrees/
 .conda/
+__pycache__/
+*.pyc
