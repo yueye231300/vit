@@ -74,13 +74,13 @@ class EncoderBlock(nn.Module):
 
 
 class VisionTransformer(nn.Module):
-    image_size: int | Sequence[int]
-    patch_size: int
-    hidden_dim: int
-    depth: int
-    num_heads: int
-    mlp_dim: int
-    num_classes: int
+    image_size: int | Sequence[int] = 28
+    patch_size: int = 4
+    hidden_dim: int = 8
+    depth: int = 4
+    num_heads: int = 2
+    mlp_dim: int = 32
+    num_classes: int = 10
 
     @nn.compact
     def __call__(self, images: jnp.ndarray) -> jnp.ndarray:

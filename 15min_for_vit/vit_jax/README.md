@@ -5,6 +5,8 @@
 It is meant to be compared directly with the existing PyTorch script in this directory:
 - `vision_transformer_from_scratch.py`
 
+The default model and training arguments are aligned with the PyTorch script's current `main()` configuration so you can make a closer speed comparison without manually re-entering hyperparameters.
+
 ## Setup
 
 This worktree uses a project-local conda environment with the JAX GPU build.
@@ -20,7 +22,7 @@ If you want to recreate the environment:
 
 ```bash
 conda env create --prefix /home/yuyue/projects/vit/.worktrees/vit-jax/.conda --file environment.yml --yes
-```
+
 
 To verify that JAX sees the GPU:
 
