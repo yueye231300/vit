@@ -202,9 +202,9 @@ def main():
     train_dataset = MNIST(root="./data", train=True, transform=transform, download=True)
     test_dataset = MNIST(root="./data", train=False, transform=transform, download=True)
 
-    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
-    test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
     # defining model and traing options
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -221,7 +221,7 @@ def main():
     #     depths=[2, 2],  # 只用2层，避免分辨率变为0
     #     dims=[64, 128],  # 对应减少通道数
     # ).to(device)
-    N_epochs = 5
+    N_epochs = 50
     LR = 0.005
     # training loop
     optimizer = Adam(model.parameters(), lr=LR)
