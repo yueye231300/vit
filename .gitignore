@@ -6,3 +6,4 @@ vision_language_model_from_scratch/notes
 .conda/
 __pycache__/
 *.pyc
+ELF/
