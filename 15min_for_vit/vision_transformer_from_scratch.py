@@ -26,9 +26,9 @@ torch.manual_seed(42)
 def pathchify(images, n_patches):
     # images: (batch, channels, height, width); n_patches: number of splits per side
     n, c, h, w = images.shape
-    assert (
-        h % n_patches == 0 and w % n_patches == 0
-    ), "Image dimensions must be divisible by number of patches"
+    assert h % n_patches == 0 and w % n_patches == 0, (
+        "Image dimensions must be divisible by number of patches"
+    )
     assert h == w, "Currently only square images are supported"
 
     # Preallocate tensor to hold all flattened patches: (batch, total_patches, patch_vector_length)
@@ -144,9 +144,9 @@ class MyViT(nn.Module):
         self.n_heads = n_heads
         self.out_dim = out_dim
 
-        assert (
-            chw[1] % n_patches == 0 and chw[2] % n_patches == 0
-        ), "Image dimensions must be divisible by number of patches"
+        assert chw[1] % n_patches == 0 and chw[2] % n_patches == 0, (
+            "Image dimensions must be divisible by number of patches"
+        )
         self.patch_size = (chw[1] // n_patches, chw[2] // n_patches)
 
         # 1) linear mapper
@@ -238,7 +238,7 @@ def main():
             optimizer.step()
             running_loss += loss.item()
         print(
-            f"Epoch [{epoch+1}/{N_epochs}], Loss: {running_loss/len(train_loader):.4f}"
+            f"Epoch [{epoch + 1}/{N_epochs}], Loss: {running_loss / len(train_loader):.4f}"
         )
 
     # testing loop
@@ -255,10 +255,9 @@ def main():
             total += labels.size(0)
             correct += torch.sum(torch.argmax(output, dim=1) == labels).item()
         print(
-            f"Test Loss: {test_loss/len(test_loader):.4f}, Test Accuracy: {100 * correct / total:.2f}%"
+            f"Test Loss: {test_loss / len(test_loader):.4f}, Test Accuracy: {100 * correct / total:.2f}%"
         )
 
 
 if __name__ == "__main__":
-
     main()
