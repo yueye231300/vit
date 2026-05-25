@@ -105,7 +105,6 @@ class ResidualAdd(nn.Module):
 
 
 class SegFormerEncoderBlock(nn.Sequential):
-
     def __init__(
         self,
         channels: int,

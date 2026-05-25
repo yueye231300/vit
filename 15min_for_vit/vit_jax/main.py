@@ -12,7 +12,9 @@ from vit_jax.train import create_train_state, eval_step, train_step
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Train a small Vision Transformer with JAX.")
+    parser = argparse.ArgumentParser(
+        description="Train a small Vision Transformer with JAX."
+    )
     parser.add_argument("--epochs", type=int, default=50)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--learning-rate", type=float, default=0.005)
@@ -29,7 +31,9 @@ def build_parser() -> argparse.ArgumentParser:
 
 def _mean_metrics(metrics_list: list[dict[str, jax.Array]]) -> dict[str, float]:
     return {
-        key: float(np.mean([float(jax.device_get(metrics[key])) for metrics in metrics_list]))
+        key: float(
+            np.mean([float(jax.device_get(metrics[key])) for metrics in metrics_list])
+        )
         for key in metrics_list[0]
     }
 

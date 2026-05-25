@@ -106,23 +106,73 @@ class GemmaMLP(nn.Module):
         # z = y * j # [Batch_size, Seq_len, Intermediate_size]
         # z = self.down_proj(z) # [Batch_size, Seq_len, Hidden_size]
         return self.down_proj(nn.functional.gelu(self.gate_proj(x), approximate='tanh') * self.up_proj(x))
-
+ 
 class GemmaAttention(nn.Module):
     def __init__(self,config:GemmaConfig,layer_idx:Optional[int]=None):
+        # layer_index is used to know which kvcache for the layer 
         super().__init__()
         self.config = config 
         self.layer_idx = layer_idx
         
         self.attention_dropout = config.attention_dropout
         self.hidden_size = config.hidden_size
-        self.num_attention_heads = config.num_attention_heads
-        self.head_dims = config.head_dims
-        self.all_head_size = self.num_attention_heads * self.head_dims
+        self.num_heads = config.num_attention_heads
+        self.head_dim = config.head_dim
+        
+        self.num_key_value_heads = config.num_key_value_heads
+        self.num_key_value_groups = self.num_heads//self.num_key_value_heads
+        self.max_position_embeddings = config.max_position_embeddings
+        self.rope_theta = config.rope_theta
+        self.is_causal = True
 
-        self.query_proj = nn.Linear(self.hidden_size,self.all_head_size,bias=False)
-        self.key_proj = nn.Linear(self.hidden_size,self.num_key_value_heads*self.head_dims,bias=False)
-        self.value_proj = nn.Linear(self.hidden_size,self.num_key_value_heads*self.head_dims,bias=False)
-        self.out_proj = nn.Linear(self.all_head_size,self.hidden_size,bias=False)
+        assert self.hidden_size%self.num_heads ==0 
+        # Number of heads = 8  
+        # Head_dim = 128 
+        # Hidden_size = 1024 
+        # The multi query attention 
+        #  Wq : [1024,8*128] = [1024,1024]
+        #  Wk : [1024,128]
+        #  Wv : [1024,128]
+        #  Wo : [1024,1024] The group attention have the less dim for the k and v 
+        self.q_proj = nn.Linear(self.hidden_size,self.num_heads*self.head_dim,bias = config.attention_bias)
+        self.k_proj = nn.Linear(self.hidden_size,self.num_key_value_heads*self.head_dim,bias = config.attention_bias)
+        self.v_proj = nn.Linear(self.hidden_size,self.num_key_value_heads*self.head_dim,bias = config.attention_bias)
+        self.o_proj = nn.Linear(self.num_heads*self.head_dim,self.hidden_size,bias = config.attention_bias)
+        self.rotaty_emb = GemmaRotaryEmbedding(
+            self.head_dim,
+            max_position_embeddings = self.max_position_embeddings,
+            base = self.rope_theta
+        )
+
+    def forward(
+        self,
+        hidden_states:torch.Tensor,
+        attention_mask:Optional[torch.Tensor] = None,
+        position_ids : Optional[torch.LongTensor] = None,
+        kv_cache : Optional[KVCache]= None,
+        **kwargs,
+    ) -> Tuple[torch.Tensor, Optional[torch.Tensor],Optional[Tuple[torch.Tensor]]]:
+        bsz ,q_len,_ = hidden_states.size() # [Batch_size,,Seq_len,Hidden_size]
+        # [Batch_size, Seq_len,Num_heads_Q *Head_dim]
+        query_states = self.q_proj(hidden_states)
+        # [Batch_size, Seq_len,Num_heads_KV *Head_dim]
+        key_states = self.k_proj(hidden_states)
+        # [Batch_size, Seq_len,Num_heads_KV *Head_dim]
+        value_states = self.v_proj(hidden_states)
+        # [Batch_size, Num_Heads_Q, Seq_len, Head_dim]
+        query_states = query_states.view(bsz,q_len,self.num_heads,self.head_dim).transpose(1,2)
+        # [Batch_size, Num_Heads_KV, Seq_len, Head_dim]
+        key_states = query_states.view(bsz,q_len,self.num_key_value_groups,self.head_dim).transpose(1,2)
+        # [Batch_size, Num_Heads_KV, Seq_len, Head_dim]
+        value_states = query_states.view(bsz,q_len,self.num_key_value_groups,self.head_dim).transpose(1,2)
+        # [Batch_size,Seq_len,Head_dim],[Batch_size,Seq_len,Head_dim]
+        cos,sin = self.rotaty_emb(value_states,position_ids,seq_len =None)
+        # [Batch_size,Num_Heads_Q,Seq_len,Head_dim],[Batch_size,Num_Heads_Q,Seq_len,Head_dim], use to encode the position
+        query_states,key_states = apply_rotary_pos_emb(query_states,key_states,cos,sin)
+
+        if kv_cache is not None : 
+            key_states, value_states = kv_cache.update(key_states,value_states,self.layer_idx)
+            
 
 
 

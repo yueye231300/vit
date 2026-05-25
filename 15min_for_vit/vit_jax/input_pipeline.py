@@ -64,7 +64,9 @@ def prepare_batch(images: np.ndarray, labels: np.ndarray) -> dict[str, jnp.ndarr
     if batch_images.ndim == 3:
         batch_images = batch_images[..., None]
     if batch_images.ndim != 4:
-        raise ValueError("Expected images with shape (batch, height, width[, channels]).")
+        raise ValueError(
+            "Expected images with shape (batch, height, width[, channels])."
+        )
     if batch_images.max(initial=0.0) > 1.0:
         batch_images = batch_images / 255.0
 
