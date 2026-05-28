@@ -27,7 +27,7 @@ def resize(
 ) -> np.ndarray:
     height, width = size
     resized_image = image.resize(
-        (width, height), resample=resample, reduing_gap=reducing_gap
+        (width, height), resample=resample, reducing_gap=reducing_gap
     )
     return resized_image
 
@@ -72,7 +72,7 @@ def process_images(
     images = [normalize(image, mean=image_mean, std=image_std) for image in images]
     # Move the channel dimension to the first dimemsion. The model expects images in the format
     # [Channle,Height,Width]
-    images = [image.transpose(2, 1, 0) for image in images]
+    images = [image.transpose(2, 0, 1) for image in images]
 
     return images
 
@@ -132,7 +132,7 @@ class PaliGemmaProcessor:
             add_image_tokens_to_prompt(
                 prefix_prompt=prompt,
                 bos_token=self.tokenizer.bos_token,
-                image_seq_length=self.image_seq_length,
+                image_seq_len=self.image_seq_length,
                 image_token=self.IMAGE_TOKEN,
             )
             for prompt in text

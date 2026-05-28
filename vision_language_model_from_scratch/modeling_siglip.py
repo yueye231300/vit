@@ -66,7 +66,7 @@ class SiglipVisionEmbeddings(nn.Module):
         )
 
     def forward(self, pixel_values: torch.FloatTensor) -> torch.Tensor:
-        _, _, height, width = pixel_values  # [batch_size, channels,height,width]
+        _, _, height, width = pixel_values.shape  # [batch_size, channels,height,width]
         # convolve the "patch_size" kernal over the image , with no overlapping patches
         # The output of the convolution the shape [Batch_Size,Embed_Dim,Num_patches_H,Num_patches_W]
         patch_embeds = self.patch_embedding(pixel_values)
@@ -138,9 +138,9 @@ class SiglipAttention(nn.Module):
         )
         # multiply the attention weights by the value states. attn_output : [Batch_size,num_heads,num_patches,head_dim]
         attn_output = torch.matmul(attn_weights, value_states)
-        if attn_output.size() != (batch_size, self.head_dim, seq_len, seq_len):
+        if attn_output.size() != (batch_size, self.num_heads, seq_len, self.head_dim):
             raise ValueError(
-                f"the size is not correct and the attention size should be {batch_size, self.head_dim, seq_len, seq_len}"
+                f"the size is not correct and the attention size should be {batch_size, self.num_heads, seq_len, self.head_dim}"
                 f"but now the size is the {attn_output.size()}"
             )
 
@@ -178,7 +178,7 @@ class SiglipMLP(nn.Module):
         return hidden_states
 
 
-class SiglipEncoderLayer(nn.Moudle):
+class SiglipEncoderLayer(nn.Module):
     def __init__(self, config: SiglipVisionConfig):
         super().__init__()
         self.embed_dim = config.hidden_size
@@ -242,7 +242,7 @@ class SiglipVisionTransformer(nn.Module):
         # pixel_values:[batch_size, channels,height,width] -> [Batch_size,num_patches,embed_dim]
         hidden_states = self.embeddings(pixel_values)
 
-        last_hidden_states = self.encoder(inputs_embed=hidden_states)
+        last_hidden_states = self.encoder(input_embeds=hidden_states)
         last_hidden_states = self.post_layernorm(last_hidden_states)
         return last_hidden_states
 
@@ -253,6 +253,6 @@ class SiglipVisionModel(nn.Module):
         self.config = config
         self.vision_model = SiglipVisionTransformer(config)
 
-        def forward(self, pixel_values) -> Tuple:
-            # [Batch_Size,Channels,Height,Width] -> [Batch_Size,Num_Patches,Embed_Dim]
-            return self.vision_model(pixel_values=pixel_values)
+    def forward(self, pixel_values) -> torch.Tensor:
+        # [Batch_Size,Channels,Height,Width] -> [Batch_Size,Num_Patches,Embed_Dim]
+        return self.vision_model(pixel_values=pixel_values)
